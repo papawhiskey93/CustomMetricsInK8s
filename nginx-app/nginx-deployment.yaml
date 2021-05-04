@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: nginx
+  name: nginx-deployment
+spec:
+  replicas: 1
+  selector:
+   matchLabels:
+    app: nginx-server
+  template:
+    metadata:
+      annotations:
+        prometheus.io/path: "/status/format/prometheus"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "80"
+      labels:
+        app: nginx-server
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - nginx-server
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: nginx-demo
+        image: vaibhavthakur/nginx-vts:v1.0
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: "0.4"
+          requests:
+            cpu: "0.2"
+        ports:
+        - containerPort: 80
+          name: http
+

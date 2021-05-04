@@ -1,0 +1,96 @@
+minikube delete 
+#minikube start
+minikube start --cpus 3
+
+
+#---addons
+minikube addons list
+minikube addons enable metrics-server
+minikube addons enable ingress
+minikube addons enable ingress-dns
+minikube addons enable dashboard 
+minikube addons list
+
+#----tiller
+kubectl -n kube-system create serviceaccount tiller
+kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller
+#helm init --service-account tiller --output yaml | sed 's@apiVersion: extensions/v1beta1@apiVersion: apps/v1@' | sed 's@  replicas: 1@  replicas: 1\n  selector: {"matchLabels": {"app": "helm", "name": "tiller"}}@' | kubectl apply -f -
+helm init --service-account tiller --override spec.selector.matchLabels.'name'='tiller',spec.selector.matchLabels.'app'='helm' --output yaml | sed 's@apiVersion: extensions/v1beta1@apiVersion: apps/v1@' | kubectl apply -f -
+kubectl get all -n kube-system | grep tiller
+
+
+#----prometheus-deployment
+kubectl create namespace monitoring
+
+kubectl create -f clusterRole.yaml
+
+kubectl create -f config-map.yaml
+
+kubectl create  -f prometheus-deployment.yaml 
+
+#kubectl get deployments --namespace=monitoring
+#kubectl get pods --namespace=monitoring
+#kubectl port-forward prometheus-monitoring-3331088907-hm5n1 8080:9090 -n monitoring
+
+kubectl create -f prometheus-service.yaml
+
+#-----------kube-state metrics
+kubectl apply -f kube-state-metrics/
+
+kubectl get deployments kube-state-metrics -n kube-system
+
+#--alert manager
+kubectl create -f AlertManagerConfigmap.yaml
+
+kubectl create -f AlertTemplateConfigMap.yaml
+
+kubectl create -f Deployment.yaml
+
+kubectl create -f alertmanager-service.yaml
+
+
+#--node exporter
+kubectl create -f daemonset.yaml
+
+kubectl create -f Service.yaml
+
+kubectl get daemonset -n monitoring
+
+kubectl get endpoints -n monitoring 
+
+
+#-----------grafana
+cd kubernetes-grafana/
+
+kubectl create -f grafana-datasource-config.yaml
+
+kubectl create -f deployment.yaml
+
+kubectl create -f service.yaml
+
+cd ..
+
+#---------
+kubectl create -f https://raw.githubusercontent.com/x1wins/CW-OVP/master/k8s-manifests/components.yaml
+
+kubectl get apiservices
+
+kubectl get deploy,po,svc,hpa,configmap,secret -n monitoring
+
+#-----nginx deployment
+
+kubectl get --raw "/apis/custom.metrics.k8s.io/v1beta1" | jq .
+kubectl get --raw "/apis/custom.metrics.k8s.io/v1beta1/namespaces/nginx/pods/*/nginx_vts_server_requests_per_second" | jq .
+#echo "GET http://nginx.gotham.com/" | vegeta attack -rate=5 -duration=0 | vegeta report
+
+#echo "GET http://192.168.49.2:30001/" | vegeta attack -rate=5 -duration=0 | vegeta report
+
+#--minikube cpu and memory
+#kubectl get node minikube -o jsonpath='{.status.capacity}'
+
+#minikube start --cpus 3
+
+helm repo add incubator https://charts.helm.sh/incubator
+helm repo add stable https://charts.helm.sh/stable
+
+
